@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.AttendanceMapper">
+
+    <resultMap id="findAttendanceByStudentCourseAndTimeResultMap" type="com.example.demo.entities.Attendance">
+        <result property="id" column="ID"></result>
+        <result property="status" column="STATUS"></result>
+        <result property="slotNumber" column="SLOT"></result>
+        <result property="studentCourseId" column="STUDENT_COURSE_ID"></result>
+        <result property="timeBegin" column="DATE_TIME_BEGIN"></result>
+        <result property="room" column="ROOM"></result>
+        <result property="timeEnd" column="DATE_TIME_END"></result>
+        <result property="studentId" column="STUDENT_ID"></result>
+        <result property="studentId" column="COURSE_NAME"></result>
+    </resultMap>
+
+    <select id="findAttendanceByStudentCourseAndTime" parameterType="java.util.Map" resultMap="findAttendanceByStudentCourseAndTimeResultMap">
+        SELECT
+            *
+        FROM
+            ATTENDANCE_TBL
+        WHERE
+            STUDENT_ID = #{studentId}
+            AND #{currentDate}
+            BETWEEN  DATE_TIME_BEGIN
+            AND DATE_TIME_END
+    </select>
+
+    <resultMap id="findInfoAttendanceResultMap" type="com.example.demo.dtos.InfoStudentResponseDTO">
+        <result property="studentId" column="ID"></result>
+        <result property="fullname" column="FULLNAME"></result>
+        <result property="dob" column="DOB"></result>
+        <result property="currentAttendanceId" column="CURRENTATTENDANCEID"></result>
+        <result property="currentCourseName" column="CURRENTCOURSENAME"></result>
+        <result property="currentNote" column="CURRENTNOTE"></result>
+        <result property="currentStatus" column="CURRENTSTATUS"></result>
+        <result property="currentSlot" column="CURRENTSLOT"></result>
+        <result property="currentRoom" column="CURRENTROOM"></result>
+        <result property="absentNumber" column="ABSENTNUMBER"></result>
+        <result property="nextAttendanceId" column="NEXTATTENDANCEID"></result>
+        <result property="nextCourseName" column="NEXTCOURSENAME"></result>
+        <result property="nextSlot" column="NEXTSLOT"></result>
+        <result property="nextNote" column="NEXTNOTE"></result>
+        <result property="nextRoom" column="NEXTROOM"></result>
+        <result property="message" column="MESSAGE"></result>
+    </resultMap>
+
+    <select id="findInfoAttendance" parameterType="java.util.Map" resultMap="findInfoAttendanceResultMap">
+        SELECT
+            STUDENT.STUDENT_ID AS STUDENTID,
+            STUDENT.DOB AS DOB,
+            STUDENT.FULLNAME AS FULLNAME,
+            ATTENDANCECURRENT.DATE_TIME_BEGIN AS TIMEBEGIN,
+            ATTENDANCECURRENT.DATE_TIME_END AS TIMEEND,
+            ATTENDANCECURRENT.ID AS CURRENTATTENDANCEID,
+            ATTENDANCECURRENT.COURSE_NAME AS CURRENTCOURSENAME,
+            NOTE_TBL.DETAILS AS CURRENTNOTE,
+            ATTENDANCECURRENT.STATUS AS CURRENTSTATUS,
+            ATTENDANCECURRENT.SLOT AS CURRENTSLOT,
+            ATTENDANCECURRENT.ROOM AS CURRENTROOM,
+            (SELECT COUNT(*)
+                FROM ATTENDANCE_TBL
+                WHERE ATTENDANCE_TBL.STUDENT_ID = ATTENDANCECURRENT.STUDENT_ID
+                    AND ATTENDANCE_TBL.COURSE_NAME = ATTENDANCECURRENT.COURSE_NAME
+                    AND ATTENDANCE_TBL.STATUS = 'ABSENT'
+            ) AS ABSENTNUMBER,
+            ATTENDANCENEXT.ID AS NEXTATTENDANCEID,
+            ATTENDANCENEXT.COURSE_NAME AS NEXTCOURSENAME,
+            ATTENDANCENEXT.SLOT AS NEXTSLOT,
+            NOTE.DETAILS AS NEXTNOTE,
+            ATTENDANCENEXT.ROOM AS NEXTROOM,
+            NULL AS MESSAGE
+        FROM
+	        STUDENT_TBL STUDENT LEFT JOIN ATTENDANCE_TBL ATTENDANCECURRENT
+		        ON STUDENT.STUDENT_ID = ATTENDANCECURRENT.STUDENT_ID
+		        AND #{currentDate} BETWEEN  ATTENDANCECURRENT.DATE_TIME_BEGIN  AND ATTENDANCECURRENT.DATE_TIME_END
+	        LEFT JOIN NOTE_TBL NOTE_TBL ON
+	            NOTE_TBL.ATTENDANCE_ID = ATTENDANCECURRENT.ID
+	        LEFT JOIN ATTENDANCE_TBL ATTENDANCENEXT ON ATTENDANCENEXT.STUDENT_ID = STUDENT.STUDENT_ID AND ATTENDANCENEXT.ID = (SELECT TOP 1 ATTENDANCENEXT.ID FROM  ATTENDANCE_TBL ATTENDANCENEXT WHERE
+	            STUDENT.STUDENT_ID = ATTENDANCENEXT.STUDENT_ID
+	            AND ( ATTENDANCENEXT.DATE_TIME_BEGIN &gt; ATTENDANCECURRENT.DATE_TIME_END
+	                OR ATTENDANCENEXT.DATE_TIME_BEGIN &gt; #{currentDate} )
+	            ORDER BY ATTENDANCENEXT.DATE_TIME_BEGIN
+	            )
+	        LEFT JOIN NOTE_TBL NOTE ON NOTE.ATTENDANCE_ID = ATTENDANCENEXT.ID
+        WHERE
+	        STUDENT.STUDENT_ID = #{studentId}
+    </select>
+
+</mapper>
